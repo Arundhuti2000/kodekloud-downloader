@@ -58,9 +58,13 @@ def kodekloud(verbose):
 @click.option(
     "--token",
     "-t",
-    required=True,
+    required=False,
     help="Token authorization bearer token.",
 )
+@click.pass_context
+def dl(ctx, course_url, quality, output_dir, cookie, token, max_duplicate_count):
+    if not token and not cookie:
+        raise click.UsageError("You must provide either --token or --cookie for authentication.")
 def dl(
     course_url,
     quality: str,
