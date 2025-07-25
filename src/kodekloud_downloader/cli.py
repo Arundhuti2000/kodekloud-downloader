@@ -45,7 +45,7 @@ def kodekloud(verbose):
 @click.option(
     "--cookie",
     "-c",
-    required=True,
+    required=False,
     help="Cookie file. Course should be accessible via this.",
 )
 @click.option(
@@ -55,11 +55,18 @@ def kodekloud(verbose):
     type=int,
     help="If same video is downloaded this many times, then download stops",
 )
+@click.option(
+    "--token",
+    "-t",
+    required=True,
+    help="Token authorization bearer token.",
+)
 def dl(
     course_url,
     quality: str,
     output_dir: Union[Path, str],
     cookie,
+    token,
     max_duplicate_count: int,
 ):
     if course_url is None:
@@ -70,6 +77,7 @@ def dl(
                 course=selected_course,
                 cookie=cookie,
                 quality=quality,
+                token=token,
                 output_dir=output_dir,
                 max_duplicate_count=max_duplicate_count,
             )
@@ -78,6 +86,7 @@ def dl(
         download_course(
             course=course_detail,
             cookie=cookie,
+            token=token,
             quality=quality,
             output_dir=output_dir,
             max_duplicate_count=max_duplicate_count,

@@ -105,6 +105,7 @@ def download_course(
     quality: str,
     output_dir: Union[str, Path],
     max_duplicate_count: int,
+    token: str=None,
 ) -> None:
     """
     Download a course from KodeKloud.
@@ -116,8 +117,19 @@ def download_course(
     :param max_duplicate_count: Maximum duplicate video before after cookie expire message will be raised
     """
     session = requests.Session()
-    session_token = parse_token(cookie)
-    headers = {"authorization": f"bearer {session_token}"}
+    if cookie:
+        cookie_jar = requests.cookies.RequestsCookieJar()
+        for c in cookie.split(";"):
+            if "=" in c:
+                name, value = c.strip().split("=", 1)
+                cookie_jar.set(name, value)
+        session.cookies.update(cookie_jar)
+    headers = {}
+    if token:
+        headers = {"Authorization": f"Bearer {token}"}
+    else:
+        session_token = parse_token(cookie)
+        headers = {"authorization": f"bearer {session_token}"}
     params = {
         "course_id": course.id,
     }
@@ -158,11 +170,11 @@ def download_course(
                         "\nYour cookie might have expired or you don't have access/enrolled to the course."
                         "\nPlease refresh/regenerate the cookie or enroll in the course and try again."
                     )
-                download_video_lesson(current_video_url, file_path, cookie, quality)
+                download_video_lesson(current_video_url, file_path, cookie, quality, token)
                 downloaded_videos[current_video_url] += 1
             else:
                 lesson_url = f"https://learn.kodekloud.com/user/courses/{course.slug}/module/{module.id}/lesson/{lesson.id}"
-                download_resource_lesson(lesson_url, file_path, cookie)
+                download_resource_lesson(lesson_url, file_path, cookie, token)
 
 
 def create_file_path(
@@ -194,7 +206,7 @@ def create_file_path(
 
 
 def download_video_lesson(
-    lesson_video_url, file_path: Path, cookie: str, quality: str
+    lesson_video_url, file_path: Path, cookie: str, quality: str, token:str,
 ) -> None:
     """
     Download a video lesson.
@@ -212,6 +224,7 @@ def download_video_lesson(
             url=lesson_video_url,
             output_path=file_path,
             cookie=cookie,
+            token = token,
             quality=quality,
         )
     except yt_dlp.utils.UnsupportedError as ex:
@@ -225,7 +238,7 @@ def download_video_lesson(
         )
 
 
-def download_resource_lesson(lesson_url, file_path: Path, cookie: str) -> None:
+def download_resource_lesson(lesson_url, file_path: Path, cookie: str, token:str) -> None:
     """
     Download a resource lesson.
 
@@ -234,7 +247,12 @@ def download_resource_lesson(lesson_url, file_path: Path, cookie: str) -> None:
     :param cookie: The user's authentication cookie
     """
     # TODO: Did we break this? I have no idea.
-    page = requests.get(lesson_url)
+    headers = {}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    elif cookie:
+        headers["Cookie"] = cookie
+    page = requests.get(lesson_url, headers=headers)
     soup = BeautifulSoup(page.content, "html.parser")
     content = soup.find("div", class_="learndash_content_wrap")
 
@@ -244,4 +262,4 @@ def download_resource_lesson(lesson_url, file_path: Path, cookie: str) -> None:
         file_path.with_suffix(".md").write_text(
             markdownify.markdownify(content.prettify()), encoding="utf-8"
         )
-        download_all_pdf(content=content, download_path=file_path.parent, cookie=cookie)
+        download_all_pdf(content=content, download_path=file_path.parent, cookie=cookie, token=token)
